@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor de Mapas</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0f14;color:#cdd7e3;font-family:sans-serif}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
+#screen-config{align-items:center;justify-content:center;padding:20px}
+.card{width:100%;max-width:420px;background:#121820;border:1px solid #26313f;border-radius:6px;padding:24px}
+.card h2{margin:0 0 16px;font-size:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:#8393a8;margin-bottom:4px}
+input[type=number]{width:100%;background:#0e131a;border:1px solid #26313f;color:#fff;padding:8px;border-radius:3px}
+.row{display:flex;gap:10px}
+.row .field{flex:1}
+.radios{display:flex;flex-direction:column;gap:6px;background:#0e131a;border:1px solid #1c2530;border-radius:3px;padding:10px;margin-top:6px}
+.radios label{font-size:13px;display:flex;gap:8px;align-items:center}
+.btn{border:1px solid #26313f;background:#182029;color:#fff;padding:9px 14px;border-radius:3px;cursor:pointer;font-size:13px}
+.btn-primary{background:#e2a53d;border-color:#e2a53d;color:#1a1206;font-weight:bold}
+.btn-block{width:100%;padding:11px;margin-top:16px}
+.banner{display:none;background:#0e131a;border:1px dashed #49c9c5;border-radius:3px;padding:10px;margin-bottom:16px;font-size:12px}
+.banner.show{display:block}
+.err{color:#d9636c;font-size:12px;display:none;margin-top:6px}
+.err.show{display:block}
+#screen-editor{flex-direction:column;height:100vh}
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#121820;border-bottom:1px solid #26313f;flex-wrap:wrap}
+.topbar h3{margin:0;font-size:14px;margin-right:auto}
+.body{flex:1;display:flex;min-height:0}
+.gridwrap{flex:1;overflow:auto;background:#0e131a;padding:16px}
+#grid{display:inline-grid;border:1px solid #26313f}
+.hdr{background:#182029;color:#8393a8;font-size:11px;display:flex;align-items:center;justify-content:center;user-select:none}
+.cell{position:relative;cursor:pointer;overflow:hidden}
+.cell img{display:block;width:100%;height:100%;object-fit:cover}
+.cell.cur{outline:2px solid #ff4d94;outline-offset:-2px;z-index:1}
+.side{width:250px;flex-shrink:0;background:#121820;border-left:1px solid #26313f;display:flex;flex-direction:column;overflow:hidden}
+.active{display:flex;gap:10px;padding:12px;border-bottom:1px solid #26313f;align-items:center}
+.active .th{width:40px;height:40px;overflow:hidden;border:1px solid #1c2530}
+.active .th img{width:100%;height:100%;object-fit:cover}
+.cur-block{padding:12px;border-bottom:1px solid #26313f}
+.coord{font-size:13px;color:#49c9c5;text-align:center;margin-bottom:8px}
+.dpad{display:grid;grid-template-columns:repeat(3,32px);grid-template-rows:repeat(2,32px);gap:5px;justify-content:center;margin-bottom:8px}
+.dpad button{background:#182029;border:1px solid #26313f;color:#fff;cursor:pointer}
+.dpad .u{grid-column:2;grid-row:1}.dpad .l{grid-column:1;grid-row:2}.dpad .r{grid-column:3;grid-row:2}.dpad .d{grid-column:2;grid-row:2}
+.cat{flex:1;overflow-y:auto;padding:10px}
+.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tb{background:#182029;border:1px solid #26313f;border-radius:3px;padding:5px;cursor:pointer;color:#fff;text-align:center}
+.tb.sel{border-color:#e2a53d}
+.tb .th2{width:100%;aspect-ratio:1/1;overflow:hidden;margin-bottom:4px}
+.tb .th2 img{width:100%;height:100%;object-fit:cover}
+.tb .lbl{font-size:9px;color:#8393a8}
+.status{padding:6px 12px;background:#121820;border-top:1px solid #26313f;font-size:11px;color:#8393a8;display:flex;justify-content:space-between}
+@media(max-width:700px){.body{flex-direction:column}.side{width:100%;border-left:none;border-top:1px solid #26313f;max-height:45vh}}
+</style>
+</head>
+<body>
+<section id="screen-config" class="screen active">
+<div class="card">
+<h2>Editor de mapas</h2>
+<div class="banner" id="banner">Mapa guardado: <b id="bd">-</b>
+<div style="margin-top:8px;display:flex;gap:8px"><button class="btn btn-primary" id="bcont">Continuar</button><button class="btn" id="bdisc">Descartar</button></div></div>
+<div class="row">
+<div class="field"><label>Ancho</label><input type="number" id="iw" min="1" max="200" value="12"></div>
+<div class="field"><label>Alto</label><input type="number" id="ih" min="1" max="200" value="10"></div>
+</div>
+<div class="field"><label><input type="checkbox" id="isc" checked> Mostrar coordenadas</label></div>
+<div class="radios" id="ctg">
+<label><input type="radio" name="ct" value="alfa-num" checked> Alfanumérica (C4)</label>
+<label><input type="radio" name="ct" value="num-num"> Numérica (3,4)</label>
+<label><input type="radio" name="ct" value="alfa-alfa"> Doble letra (C,D')</label>
+</div>
+<div class="err" id="cerr">Ancho y alto deben ser ≥1.</div>
+<button class="btn btn-primary btn-block" id="bcreate">Crear mapa →</button>
+</div>
+</section>
+
+<section id="screen-editor" class="screen">
+<div class="topbar">
+<button class="btn" id="bback">← Config</button>
+<h3 id="mtitle">Mapa</h3>
+<span style="font-size:12px">Zoom</span>
+<input type="range" id="izoom" min="20" max="100" step="2" value="42">
+<button class="btn" id="bexp">Exportar JSON</button>
+<button class="btn" id="bimp">Importar JSON</button>
+<input type="file" id="fimp" accept="application/json" style="display:none">
+</div>
+<div class="body">
+<div class="gridwrap"><div id="grid"></div></div>
+<aside class="side">
+<div class="active"><div class="th" id="athumb"></div><div id="aname">Pradera</div></div>
+<div class="cur-block">
+<div class="coord" id="creadout">A1</div>
+<div class="dpad">
+<button class="u" id="bu">▲</button>
+<button class="l" id="bl">◀</button>
+<button class="r" id="br">▶</button>
+<button class="d" id="bd2">▼</button>
+</div>
+<button class="btn btn-primary" style="width:100%" id="bchange">Cambiar tile</button>
+</div>
+<div class="cat"><div class="tg" id="tgrid"></div></div>
+</aside>
+</div>
+<div class="status"><span id="sl">0</span><span id="sr">Guardado automático</span></div>
+</section>
+
+<script>
+const TN=["Pradera","Pradera con recurso","Nieve","Montaña","Bosque","Río recto 1","Río recto 2","Río en L 1","Río en L 2","Río en L 3","Río en L 4","Río en T 1","Río en T 2","Río en T 3","Río en T 4","Desierto","Reservado 17","Reservado 18","Reservado 19","Reservado 20"];
+const TF=id=>`Tiles/Tile${String(id).padStart(2,"0")}.png`;
+const SK="mapEditorState_v1";
+let S={width:12,height:10,showCoords:true,coordType:"alfa-num",cellSize:42,grid:[],cursor:{col:0,row:0},brush:1};
+let cellEls=[];
+const cl=n=>{let s="",m=n+1;while(m>0){const r=(m-1)%26;s=String.fromCharCode(65+r)+s;m=Math.floor((m-1)/26)}return s};
+const ch=(c,t)=>t==="num-num"?String(c+1):cl(c);
+const rh=(r,t)=>t==="alfa-alfa"?cl(r)+"'":String(r+1);
+const cc=(c,r,t)=>t==="num-num"?`${c+1},${r+1}`:t==="alfa-alfa"?`${cl(c)},${cl(r)}'`:`${cl(c)}${r+1}`;
+function save(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
+function load(){try{const r=localStorage.getItem(SK);if(!r)return null;const p=JSON.parse(r);if(!p||!p.width||!p.height||!Array.isArray(p.grid))return null;return p}catch(e){return null}}
+function build(w,h,sc,ct,keep){const prev=keep?S.grid.slice():null,pw=keep?S.width:0,ph=keep?S.height:0;const g=new Array(w*h).fill(1);if(prev)for(let r=0;r<Math.min(h,ph);r++)for(let c=0;c<Math.min(w,pw);c++)g[r*w+c]=prev[r*pw+c];S.width=w;S.height=h;S.showCoords=sc;S.coordType=ct;S.grid=g;S.cursor={col:0,row:0};save()}
+function img(id){const i=document.createElement("img");i.src=TF(id);i.alt=TN[id-1]||"";i.draggable=false;return i}
+function renderGrid(){const g=document.getElementById("grid");g.innerHTML="";cellEls=[];const cs=S.cellSize,hc=S.showCoords?1:0;g.style.gridTemplateColumns=`repeat(${S.width+hc},${cs}px)`;g.style.gridTemplateRows=`repeat(${S.height+hc},${cs}px)`;
+if(S.showCoords){const co=document.createElement("div");co.className="hdr";g.appendChild(co);for(let c=0;c<S.width;c++){const h=document.createElement("div");h.className="hdr";h.textContent=ch(c,S.coordType);g.appendChild(h)}}
+for(let r=0;r<S.height;r++){if(S.showCoords){const h=document.createElement("div");h.className="hdr";h.textContent=rh(r,S.coordType);g.appendChild(h)}const row=[];for(let c=0;c<S.width;c++){const cell=document.createElement("div");cell.className="cell";cell.appendChild(img(S.grid[r*S.width+c]));cell.addEventListener("click",()=>moveTo(c,r));g.appendChild(cell);row.push(cell)}cellEls.push(row)}
+markCur()}
+function markCur(){document.querySelectorAll(".cell.cur").forEach(e=>e.classList.remove("cur"));const e=cellEls[S.cursor.row]&&cellEls[S.cursor.row][S.cursor.col];if(e)e.classList.add("cur");document.getElementById("creadout").textContent=cc(S.cursor.col,S.cursor.row,S.coordType)}
+function renderCat(){const c=document.getElementById("tgrid");c.innerHTML="";for(let id=1;id<=20;id++){const b=document.createElement("button");b.className="tb"+(id===S.brush?" sel":"");const t=document.createElement("div");t.className="th2";t.appendChild(img(id));const l=document.createElement("div");l.className="lbl";l.textContent=TN[id-1];b.appendChild(t);b.appendChild(l);b.addEventListener("click",()=>selBrush(id));c.appendChild(b)}}
+function renderActive(){const t=document.getElementById("athumb");t.innerHTML="";t.appendChild(img(S.brush));document.getElementById("aname").textContent=TN[S.brush-1];renderCat()}
+function renderStatus(){const p=S.grid.filter(id=>id!==1).length;document.getElementById("sl").textContent=`${p} celdas distintas · ${S.width}×${S.height}`}
+function renderEditor(){document.getElementById("mtitle").textContent=`Mapa ${S.width}×${S.height}`;document.getElementById("izoom").value=S.cellSize;renderGrid();renderActive();renderStatus()}
+function moveTo(c,r){const nc=Math.max(0,Math.min(S.width-1,c)),nr=Math.max(0,Math.min(S.height-1,r));if(nc===S.cursor.col&&nr===S.cursor.row)return;S.cursor={col:nc,row:nr};markCur();save()}
+function move(dc,dr){moveTo(S.cursor.col+dc,S.cursor.row+dr)}
+function selBrush(id){S.brush=id;renderActive();save()}
+function applyBrush(){const el=cellEls[S.cursor.row][S.cursor.col];S.grid[S.cursor.row*S.width+S.cursor.col]=S.brush;el.innerHTML="";el.appendChild(img(S.brush));el.classList.add("cur");renderStatus();save()}
+function showScreen(n){document.getElementById("screen-config").classList.toggle("active",n==="config");document.getElementById("screen-editor").classList.toggle("active",n==="editor")}
+const iw=document.getElementById("iw"),ih=document.getElementById("ih"),isc=document.getElementById("isc"),ctg=document.getElementById("ctg"),cerr=document.getElementById("cerr");
+document.getElementById("bcreate").addEventListener("click",()=>{const w=parseInt(iw.value,10),h=parseInt(ih.value,10);if(!w||!h||w<1||h<1){cerr.classList.add("show");return}cerr.classList.remove("show");const ct=document.querySelector('input[name=ct]:checked').value;build(w,h,isc.checked,ct,S.grid.length>0);showScreen("editor");renderEditor()});
+document.getElementById("bcont").addEventListener("click",()=>{showScreen("editor");renderEditor()});
+document.getElementById("bdisc").addEventListener("click",()=>{localStorage.removeItem(SK);document.getElementById("banner").classList.remove("show");S.grid=[]});
+document.getElementById("bback").addEventListener("click",()=>{iw.value=S.width;ih.value=S.height;isc.checked=S.showCoords;document.querySelector(`input[name=ct][value="${S.coordType}"]`).checked=true;showScreen("config")});
+document.getElementById("bu").addEventListener("click",()=>move(0,-1));
+document.getElementById("bd2").addEventListener("click",()=>move(0,1));
+document.getElementById("bl").addEventListener("click",()=>move(-1,0));
+document.getElementById("br").addEventListener("click",()=>move(1,0));
+document.getElementById("bchange").addEventListener("click",applyBrush);
+document.getElementById("izoom").addEventListener("input",e=>{S.cellSize=parseInt(e.target.value,10);renderGrid();save()});
+document.getElementById("bexp").addEventListener("click",()=>{const b=new Blob([JSON.stringify(S,null,2)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`mapa_${S.width}x${S.height}.json`;a.click();URL.revokeObjectURL(u)});
+document.getElementById("bimp").addEventListener("click",()=>document.getElementById("fimp").click());
+document.getElementById("fimp").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(!p.width||!p.height||!Array.isArray(p.grid))throw 0;S=Object.assign({width:12,height:10,showCoords:true,coordType:"alfa-num",cellSize:42,cursor:{col:0,row:0},brush:1},p);save();showScreen("editor");renderEditor()}catch(x){alert("JSON inválido")}};r.readAsText(f);e.target.value=""});
+document.addEventListener("keydown",e=>{if(!document.getElementById("screen-editor").classList.contains("active"))return;if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Enter"].includes(e.key))e.preventDefault();if(e.key==="ArrowUp")move(0,-1);else if(e.key==="ArrowDown")move(0,1);else if(e.key==="ArrowLeft")move(-1,0);else if(e.key==="ArrowRight")move(1,0);else if(e.key==="Enter"||e.key===" ")applyBrush()});
+(function(){const sv=load();if(sv){S=sv;document.getElementById("banner").classList.add("show");document.getElementById("bd").textContent=`${sv.width}×${sv.height}`;iw.value=sv.width;ih.value=sv.height;isc.checked=sv.showCoords;const rd=document.querySelector(`input[name=ct][value="${sv.coordType}"]`);if(rd)rd.checked=true}})();
+</script>
+</body>
+</html>
